@@ -16,6 +16,7 @@ module.exports = {
       params: {
         message: [
           "git clone https://huggingface.co/spaces/YupengZhou/StoryDiffusion app",
+          "hf_token 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"
         ]
       }
     },
