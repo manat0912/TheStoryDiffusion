@@ -1,0 +1,12 @@
+
+diffusers==0.25.0
+transformers==4.36.2
+huggingface-hub
+numpy
+accelerate==0.31.0
+safetensors
+omegaconf
+peft
+Pillow
+spaces
+gradio

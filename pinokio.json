@@ -2,6 +2,11 @@
   "title": "StoryDiffusion",
   "description": "",
   "icon": "icon.png",
-  "links": [],
+  "links": [
+    {
+      "title": "website",
+      "value": "https://huggingface.co/spaces/YupengZhou/StoryDiffusion"
+    }
+  ],
   "posts": []
 }
