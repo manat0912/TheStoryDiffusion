@@ -1,9 +1,8 @@
-
-diffusers==0.25.0
-transformers==4.36.2
+diffusers
+transformers
 huggingface-hub
 numpy
-accelerate==0.31.0
+accelerate
 safetensors
 omegaconf
 peft
