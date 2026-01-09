@@ -78,12 +78,14 @@ class SpatialAttnProcessor2_0(torch.nn.Module):
             the weight scale of image prompt.
     """
 
-    def __init__(self, hidden_size = None, cross_attention_dim=None,id_length = 4,device = "cuda",dtype = torch.float16):
+    def __init__(self, hidden_size = None, cross_attention_dim=None,id_length = 4,device = None,dtype = None):
         super().__init__()
         if not hasattr(F, "scaled_dot_product_attention"):
             raise ImportError("AttnProcessor2_0 requires PyTorch 2.0, to use it, please upgrade PyTorch to 2.0.")
-        self.device = device
-        self.dtype = dtype
+        # Use global device and dtype if not specified
+        global DEVICE, DTYPE
+        self.device = device if device is not None else DEVICE
+        self.dtype = dtype if dtype is not None else DTYPE
         self.hidden_size = hidden_size
         self.cross_attention_dim = cross_attention_dim
         self.total_length = id_length + 1
@@ -408,22 +410,28 @@ version = r"""
 <h5>Tips: Not Ready Now! Just Test! It's better to use prompts to assist in controlling the character's attire. Depending on the limited code integration time, there might be some undiscovered bugs. If you find that a particular generation result is significantly poor, please email me (ypzhousdu@gmail.com)  Thank you very much.</h4>
 """
 #################################################
-global attn_count, total_count, id_length, total_length,cur_step, cur_model_type
-global write
-global  sa32, sa64
-global height,width
+# GPU Detection and Device Configuration
+if torch.cuda.is_available():
+    DEVICE = "cuda"
+    DTYPE = torch.float16
+    print(f"GPU detected! Using device: {DEVICE} with dtype: {DTYPE}")
+else:
+    DEVICE = "cpu"
+    DTYPE = torch.float32
+    print(f"No GPU detected. Using device: {DEVICE} with dtype: {DTYPE}")
+    print("Warning: Running on CPU will be significantly slower. Consider using a GPU for better performance.")
+
+#################################################
+# Module-level variables (already global at module scope)
 attn_count = 0
 total_count = 0
 cur_step = 0
 id_length = 4
 total_length = 5
 cur_model_type = ""
-device="cuda"
-global attn_procs,unet
+device = DEVICE  # Use detected device
 attn_procs = {}
-###
 write = False
-###
 sa32 = 0.5
 sa64 = 0.5
 height = 768
@@ -440,28 +448,26 @@ use_safetensors= False
 # pipe1.scheduler.set_timesteps(50)
 ### 
 pipe2 = PhotoMakerStableDiffusionXLPipeline.from_pretrained(
-    models_dict["Unstable"], torch_dtype=torch.float16, use_safetensors=use_safetensors)
-pipe2 = pipe2.to("cpu")
+    models_dict["Unstable"], torch_dtype=DTYPE, use_safetensors=use_safetensors)
+pipe2 = pipe2.to("cpu")  # Keep on CPU initially to save memory
 pipe2.load_photomaker_adapter(
     os.path.dirname(photomaker_path),
     subfolder="",
     weight_name=os.path.basename(photomaker_path),
     trigger_word="img"  # define the trigger word
 )
-pipe2 = pipe2.to("cpu")
 pipe2.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
 pipe2.fuse_lora()
 
 pipe4 = PhotoMakerStableDiffusionXLPipeline.from_pretrained(
-    models_dict["RealVision"], torch_dtype=torch.float16, use_safetensors=True)
-pipe4 = pipe4.to("cpu")
+    models_dict["RealVision"], torch_dtype=DTYPE, use_safetensors=True)
+pipe4 = pipe4.to("cpu")  # Keep on CPU initially to save memory
 pipe4.load_photomaker_adapter(
     os.path.dirname(photomaker_path),
     subfolder="",
     weight_name=os.path.basename(photomaker_path),
     trigger_word="img"  # define the trigger word
 )
-pipe4 = pipe4.to("cpu")
 pipe4.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
 pipe4.fuse_lora()
 
@@ -512,6 +518,7 @@ def process_generation(_sd_type,_model_type,_upload_images, _num_steps,style_nam
     if len(prompt_array.splitlines()) > 10:
         raise gr.Error(f"No more than 10 prompts in huggface demo for Speed! But found {len(prompt_array.splitlines())} prompts!")
     global sa32, sa64,id_length,total_length,attn_procs,unet,cur_model_type,device
+    global DEVICE, DTYPE  # Add DTYPE to globals
     global num_steps
     global write
     global cur_step,attn_count
@@ -526,7 +533,7 @@ def process_generation(_sd_type,_model_type,_upload_images, _num_steps,style_nam
     if  style_name == "(No style)":
         sd_model_path = models_dict["RealVision"]
     if _model_type == "original":
-        pipe = StableDiffusionXLPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16)
+        pipe = StableDiffusionXLPipeline.from_pretrained(sd_model_path, torch_dtype=DTYPE)
         pipe = pipe.to(device)
         pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
         # pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
@@ -557,7 +564,7 @@ def process_generation(_sd_type,_model_type,_upload_images, _num_steps,style_nam
     if start_merge_step > 30:
         start_merge_step = 30
     print(f"start_merge_step:{start_merge_step}")
-    generator = torch.Generator(device="cuda").manual_seed(seed_)
+    generator = torch.Generator(device=device).manual_seed(seed_)
     sa32, sa64 =  sa32_, sa64_
     id_length = id_length_
     clipped_prompts = prompts[:]
