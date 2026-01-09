@@ -1,6 +1,16 @@
 module.exports = {
+  requires: {
+    bundle: "ai",
+  },
+  env: [
+    {
+      key: "StoryDiffusion_TOKEN",
+      title: "Huggingface Token (YupengZhou/StoryDiffusion)",
+      description: "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",
+      host: "huggingface.co"
+    }
+  ],
   run: [
-    // Edit this step to customize the git repository to use
     {
       method: "shell.run",
       params: {
@@ -37,6 +47,6 @@ module.exports = {
           sageattention: true   // uncomment this line if your project requires sageattention
         }
       }
-    },
+    }
   ]
 }
